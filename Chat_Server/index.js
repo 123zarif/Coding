@@ -114,7 +114,7 @@ wss.on('connection', (ws, req) => {
             const data = JSON.parse(message);
 
             if (data.event === "sendMsg") {
-                db.query("insert into messages (data, type) values ($1, $2)", [data.data, "text"], (err, res) => {
+                db.query("insert into messages (userid, data, type) values ($1, $2, $3)", [ws.userid, data.data, "text"], (err, res) => {
                     if (err) {
                         console.error(err);
                     } else {
