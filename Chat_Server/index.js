@@ -11,7 +11,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Middleware to authenticate token and attach user to request
 app.use((req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -50,7 +49,7 @@ app.post('/login', (req, res) => {
         const { username, password } = req.body;
 
         try {
-            if(req.userid) {
+            if (req.userid) {
                 return res.status(400).json({ success: false, message: "Already logged in" });
             }
 
@@ -90,9 +89,28 @@ app.get("/hash/:text", async (req, res) => {
         console.log(hash);
         res.json({ hash });
     } catch (err) {
-        console.error("Error generating hash:", err);
+        res.status(500).json({ error: "Error generating hash" });
     }
 })
+
+app.get('/messages', (req, res) => {
+    const func = async () => {
+        try {
+            if (!req.userid) {
+                return res.status(401).json({ success: false, message: "Unauthorized" });
+            }
+
+            const msg = await db.query('SELECT messages.*, users.name, users.pfp FROM messages LEFT JOIN users ON messages.userid = users.id ORDER BY messages.id DESC LIMIT 50')
+
+            return res.json({ success: true, messages: msg.rows });
+        } catch (err) {
+            return res.status(500).json({ success: false, message: "Server error" });
+        }
+
+    }
+
+    func();
+});
 
 
 wss.on('connection', (ws, req) => {
@@ -114,15 +132,19 @@ wss.on('connection', (ws, req) => {
             const data = JSON.parse(message);
 
             if (data.event === "sendMsg") {
-                db.query("insert into messages (userid, data, type) values ($1, $2, $3)", [ws.userid, data.data, "text"], (err, res) => {
+                if (!data.data || !data.type) return
+                db.query("insert into messages (userid, data, type) values ($1, $2, $3)", [ws.userid, data.data, data.type], (err, res) => {
                     if (err) {
                         console.error(err);
+                        return
                     } else {
                         wss.clients.forEach(client => {
                             if (client.readyState === WebSocket.OPEN) {
-                                client.send(JSON.stringify({ type: "text", msg: data.data, msgType: "text" }))
+                                client.send(JSON.stringify({ type: "text", data: data.data, userid: ws.userid, name: ws.name }))
                             }
                         })
+
+                        return;
                     }
                 })
             }
