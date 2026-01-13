@@ -38,6 +38,7 @@ export default function RootLayout() {
                 transition={1000} />
             }
           }} />
+          <Stack.Screen name="login/index" options={{ title: 'Login' }} />
         </Stack>
 
       </KeyboardProvider>
