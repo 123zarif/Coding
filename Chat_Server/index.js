@@ -11,6 +11,44 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const db = new Pool({
+    user: 'server',
+    host: 'localhost',
+    database: 'chat',
+    password: '1234',
+    port: 5432,
+});
+
+app.post("/verify_token", (req, res) => {
+    const func = async () => {
+        try {
+            const { token } = req.body;
+
+            if (token) {
+                const tokenData = await db.query("SELECT * FROM tokens WHERE token = $1", [token])
+
+                if (tokenData.rows.length === 0) {
+                    return res.status(401).json({ success: false, message: "Invalid token" });
+                }
+
+                jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+                    if (err) {
+                        return res.status(401).json({ success: false, message: "Invalid token" });
+                    }
+
+                    return res.json({ success: true, id: user.id, name: user.name, token: token });
+                });
+            } else {
+                return res.status(401).json({ success: false, message: "No token provided" });
+            }
+        } catch {
+            return res.status(500).json({ success: false, message: "Server error" });
+        }
+    }
+
+    func();
+})
+
 app.use((req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -34,13 +72,6 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 
-const db = new Pool({
-    user: 'server',
-    host: 'localhost',
-    database: 'chat',
-    password: '1234',
-    port: 5432,
-});
 
 
 
@@ -65,10 +96,10 @@ app.post('/login', (req, res) => {
                 const token = await jwt.sign({ id: result.rows[0].id, name: result.rows[0].name }, process.env.JWT_SECRET, { expiresIn: '15d' });
 
 
-                const createToken = await db.query("INSERT INTO tokens (userid, token) VALUES ($1, $2)", [result.rows[0].id, token])
+                await db.query("INSERT INTO tokens (userid, token) VALUES ($1, $2)", [result.rows[0].id, token])
 
 
-                return res.json({ success: true, message: "Login successful", token: token });
+                return res.json({ success: true, message: "Login successful", id: result.rows[0].id, name: result.rows[0].name, token: token });
             } else {
                 return res.status(401).json({ success: false, message: "Invalid credentials" });
             }

@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import { useSession } from './AuthContext';
 
 interface WebSocketContextType {
     ws: WebSocket | null;
@@ -9,25 +11,32 @@ const WebSocketContext = createContext<WebSocketContextType>({ ws: null });
 export const useWebSocket = () => useContext(WebSocketContext);
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { session } = useSession()
     const [ws, setWs] = useState<WebSocket | null>(null);
 
     useEffect(() => {
-        const socket = new WebSocket('ws://192.168.31.185:8080?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibmFtZSI6InphcmlmIiwiaWF0IjoxNzY4MjE4OTk1LCJleHAiOjE3Njk1MTQ5OTV9.Wp7pkyMV1pF2SxsByiWeTWAUTO7QyKgiZoAxDeQ7-Tg');
+        const initializeWebSocket = async () => {
+            if (session == null) return
+            const token = await SecureStore.getItemAsync("token");
+            const socket = new WebSocket(`ws://${process.env.EXPO_PUBLIC_API_URL}?token=${token}`);
 
-        socket.onopen = () => {
-            console.log('WebSocket connection opened');
-        };
+            socket.onopen = () => {
+                console.log('WebSocket connection opened');
+            };
 
-        socket.onclose = () => {
-            console.log('WebSocket connection closed');
-        };
+            socket.onclose = () => {
+                console.log('WebSocket connection closed');
+            };
 
-        setWs(socket);
+            setWs(socket);
+        }
+
+        initializeWebSocket()
 
         return () => {
-            socket.close();
+            ws?.close();
         };
-    }, []);
+    }, [session]);
 
     return (
         <WebSocketContext.Provider value={{ ws }}>
