@@ -34,6 +34,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         initializeWebSocket()
 
         return () => {
+            console.log("Cleaning up WebSocket...")
             ws?.close();
         };
     }, [session]);
