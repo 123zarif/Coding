@@ -163,15 +163,16 @@ wss.on('connection', (ws, req) => {
             const data = JSON.parse(message);
 
             if (data.event === "sendMsg") {
-                if (!data.data || !data.type) return
-                db.query("insert into messages (userid, data, type) values ($1, $2, $3)", [ws.userid, data.data, data.type], (err, res) => {
+                if (!data.data || !data.type) return;
+
+                db.query("insert into messages (userid, data, type, replied) values ($1, $2, $3, $4)", [ws.userid, data.data, data.type, data.replied], (err, res) => {
                     if (err) {
                         console.error(err);
-                        return
+                        return;
                     } else {
                         wss.clients.forEach(client => {
                             if (client.readyState === WebSocket.OPEN) {
-                                client.send(JSON.stringify({ type: "text", data: data.data, userid: ws.userid, name: ws.name }))
+                                client.send(JSON.stringify({ type: "text", data: data.data, userid: ws.userid, name: ws.name, replied: data.replied }))
                             }
                         })
 
