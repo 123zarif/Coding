@@ -131,14 +131,23 @@ app.get('/messages', (req, res) => {
                 return res.status(401).json({ success: false, message: "Unauthorized" });
             }
 
-            const msg = await db.query('SELECT messages.*, users.name, users.pfp FROM messages LEFT JOIN users ON messages.userid = users.id ORDER BY messages.id DESC LIMIT 50')
+            const { page = 1, limit = 25 } = req.query;
+            const offset = (page - 1) * limit;
+
+            const msg = await db.query(
+                'SELECT messages.*, users.name, users.pfp FROM messages \
+                 LEFT JOIN users ON messages.userid = users.id \
+                 ORDER BY messages.id DESC \
+                 LIMIT $1 OFFSET $2',
+                [parseInt(limit), parseInt(offset)]
+            );
 
             return res.json({ success: true, messages: msg.rows });
         } catch (err) {
+            console.error("Error fetching messages:", err);
             return res.status(500).json({ success: false, message: "Server error" });
         }
-
-    }
+    };
 
     func();
 });
